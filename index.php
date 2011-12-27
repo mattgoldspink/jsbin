@@ -85,7 +85,7 @@ if ($code_id) {
   <div class="help">
     <ul class="flat">
       <li><a target="_blank" href="http://jsbin.tumblr.com">Help &amp; tutorials</a></li>
-      <li class="prefsButton"><a href="#"><img src="/images/gear.png"></a></li>
+      <li class="prefsButton"><a href="#"><img src="<?php echo ROOT?>images/gear.png"></a></li>
     </ul>
   </div>
 </div>
@@ -198,18 +198,5 @@ if ($code_id) {
 </script>
 <script>jsbin = { root: "<?php echo HOST ?>", version: "<?php echo VERSION?>" }; tips = <?php echo file_get_contents('tips.json')?>;</script>
 <script src="<?php echo ROOT?>js/<?php echo VERSION?>/jsbin.js"></script>
-<?php if (!OFFLINE) : ?>
-<script>
-var _gaq = _gaq || [];
-_gaq.push(['_setAccount', 'UA-1656750-13']);
-_gaq.push(['_trackPageview']);
-
-(function() {
-  var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
-  ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
-  (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(ga);
-})();
-</script>
-<?php endif ?>
 </body>
 </html>

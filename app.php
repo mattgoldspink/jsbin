@@ -68,23 +68,23 @@ if (!$action) {
     
     $key = sha1($_POST['key']);
     $name = $_POST['name'];
-    $sql = sprintf('select * from ownership where name="%s"', mysql_real_escape_string($name));
-    $result = mysql_query($sql);
+    $sql = sprintf("select * from ownership where name='%s'", pg_escape_string(utf8_encode($name)));
+    $result = pg_query($sql);
 
     header('content-type: application/json');
   
-    if (!mysql_num_rows($result)) {
+    if (!pg_num_rows($result)) {
       // store and okay (note "key" is a reserved word - typical!)
-      $sql = sprintf('insert into ownership (name, `key`) values ("%s", "%s")', mysql_real_escape_string($name), mysql_real_escape_string($key));
-      $ok = mysql_query($sql);
+      $sql = sprintf("insert into ownership (name, `key`) values ('%s', '%s')", pg_escape_string(utf8_encode($name)), pg_escape_string(utf8_encode($key)));
+      $ok = pg_query($sql);
       if ($ok) {
         echo json_encode(array('ok' => true, 'key' => $key, 'created' => true));
       } else {
-        echo json_encode(array('ok' => false, 'error' => mysql_error()));
+        echo json_encode(array('ok' => false, 'error' => pg_result_error()));
       }
     } else {
       // check key
-      $row = mysql_fetch_object($result);
+      $row = pg_fetch_object($result);
       if ($row->key == $key) {
         echo json_encode(array('ok' => true, 'key' => $key, 'created' => false));
       } else {
@@ -166,28 +166,28 @@ if (!$action) {
       $revision++;
     }
 
-    $sql = sprintf('insert into sandbox (javascript, html, created, last_viewed, url, revision) values ("%s", "%s", now(), now(), "%s", "%s")', mysql_real_escape_string($javascript), mysql_real_escape_string($html), mysql_real_escape_string($code_id), mysql_real_escape_string($revision));
+    $sql = sprintf("insert into sandbox (javascript, html, created, last_viewed, url, revision) values ('%s', '%s', now(), now(), '%s', '%s')", pg_escape_string(utf8_encode($javascript)), pg_escape_string(utf8_encode($html)), pg_escape_string(utf8_encode($code_id)), pg_escape_string(utf8_encode($revision)));
 
     // a few simple tests to pass before we save
     if (($html == '' && $html == $javascript)) {
       // entirely blank isn't going to be saved.
     } else {
-      $ok = mysql_query($sql);
+      $ok = pg_query($sql);
       
       if ($home) {
         // first check they have write permission for this home
-        $sql = sprintf('select * from ownership where name="%s" and `key`="%s"', mysql_real_escape_string($home), mysql_real_escape_string($_COOKIE['key']));
-        $result = mysql_query($sql);
-        if (mysql_num_rows($result) == 1) {
-          $sql = sprintf('insert into owners (name, url, revision) values ("%s", "%s", "%s")', mysql_real_escape_string($home), mysql_real_escape_string($code_id), mysql_real_escape_string($revision));
-          $ok = mysql_query($sql);
+        $sql = sprintf("select * from ownership where name='%s' and `key`='%s'", pg_escape_string(utf8_encode($home)), pg_escape_string(utf8_encode($_COOKIE['key'])));
+        $result = pg_query($sql);
+        if (pg_num_rows($result) == 1) {
+          $sql = sprintf("insert into owners (name, url, revision) values ('%s', '%s', '%s')", pg_escape_string(utf8_encode($home)), pg_escape_string(utf8_encode($code_id)), pg_escape_string(utf8_encode($revision)));
+          $ok = pg_query($sql);
         }
         // $code_id = $home . '/' . $code_id;
       }
     }
     
-    // error_log('saved: ' . $code_id . ' - ' . $revision . ' -- ' . $ok . ' ' . strlen($sql));
-    // error_log(mysql_error());
+    error_log('saved: ' . $code_id . ' - ' . $revision . ' -- ' . $ok . ' ' . strlen($sql));
+    error_log(pg_last_error());
   }
 
   /** 
@@ -308,8 +308,9 @@ if (!$edit_mode || $ajax) {
 
 function connect() {
   // sniff, and if on my mac...
-  $link = mysql_connect(DB_HOST, DB_USER, DB_PASSWORD);    
-  mysql_select_db(DB_NAME, $link);
+  $link = pg_connect("dbname=".DB_NAME." host=".DB_HOST." user=".DB_USER." password=".DB_PASSWORD);    
+  // Warning: mysql_select_db() not supported.
+;
 }
 
 function encode($s) {
@@ -344,9 +345,9 @@ function getCodeIdParams($request) {
 }
 
 function getMaxRevision($code_id) {
-  $sql = sprintf('select max(revision) as rev from sandbox where url="%s"', mysql_real_escape_string($code_id));
-  $result = mysql_query($sql);
-  $row = mysql_fetch_object($result);
+  $sql = sprintf("select max(revision) as rev from sandbox where url='%s'", pg_escape_string(utf8_encode($code_id)));
+  $result = pg_query($sql);
+  $row = pg_fetch_object($result);
   return $row->rev ? $row->rev : 0;
 }
 
@@ -382,20 +383,20 @@ function formatCompletedCode($html, $javascript, $code_id, $revision) {
 
 
 function getCode($code_id, $revision, $testonly = false) {
-  $sql = sprintf('select * from sandbox where url="%s" and revision="%s"', mysql_real_escape_string($code_id), mysql_real_escape_string($revision));
-  $result = mysql_query($sql);
+  $sql = sprintf("select * from sandbox where url='%s' and revision='%s'", pg_escape_string(utf8_encode($code_id)), pg_escape_string(utf8_encode($revision)));
+  $result = pg_query($sql);
   
-  if (!mysql_num_rows($result) && $testonly == false) {
+  if (!pg_num_rows($result) && $testonly == false) {
     header("HTTP/1.0 404 Not Found");
     return defaultCode(true);
-  } else if (!mysql_num_rows($result)) {
+  } else if (!pg_num_rows($result)) {
     return array($revision);
   } else {
-    $row = mysql_fetch_object($result);
+    $row = pg_fetch_object($result);
     
     // TODO required anymore? used for auto deletion
     $sql = 'update sandbox set last_viewed=now() where id=' . $row->id;
-    mysql_query($sql);
+    pg_query($sql);
     
     $javascript = preg_replace('/\r/', '', $row->javascript);
     $html = preg_replace('/\r/', '', $row->html);
@@ -476,10 +477,10 @@ function generateCodeId($tries = 0) {
   }
   
   // check if it's free
-  $sql = sprintf('select id from sandbox where url="%s"', mysql_real_escape_string($code_id));
-  $result = mysql_query($sql);
+  $sql = sprintf("select id from sandbox where url='%s'", pg_escape_string(utf8_encode($code_id)));
+  $result = pg_query($sql);
 
-  if (mysql_num_rows($result)) {
+  if (pg_num_rows($result)) {
     $code_id = generateCodeId(++$tries);
   } else if ($tries > 10) {
     echo('Too many tries to find a new code_id - please contact using <a href="/about">about</a>');
@@ -508,13 +509,12 @@ function generateURL() {
 
 function googleAnalytics() {
   return <<<HERE_DOC
-<script>var _gaq=[['_setAccount','UA-1656750-13'],['_trackPageview']];(function(d,t){var g=d.createElement(t),s=d.getElementsByTagName(t)[0];g.src='//www.google-analytics.com/ga.js';s.parentNode.insertBefore(g,s)})(document,'script')</script>
 HERE_DOC;
 }
 
 function showSaved($name) {
-  $sql = sprintf('select * from owners where name="%s" order by url, revision desc', mysql_real_escape_string($name));
-  $result = mysql_query($sql);
+  $sql = sprintf("select * from owners where name='%s' order by url, revision desc", pg_escape_string(utf8_encode($name)));
+  $result = pg_query($sql);
 
   $bins = array();
   $order = array();
@@ -522,10 +522,10 @@ function showSaved($name) {
   // this is lame, but the optimisation was aweful on the joined version - 3-4 second query
   // with a full table scan - not good. I'm worried this doesn't scale properly, but I guess
   // I could mitigate this with paging on the UI - just a little...?
-  while ($saved = mysql_fetch_object($result)) {
-    $sql = sprintf('select * from sandbox where url="%s" and revision="%s"', mysql_real_escape_string($saved->url), mysql_real_escape_string($saved->revision));
-    $binresult = mysql_query($sql);
-    $bin = mysql_fetch_array($binresult);
+  while ($saved = pg_fetch_object($result)) {
+    $sql = sprintf("select * from sandbox where url='%s' and revision='%s'", pg_escape_string(utf8_encode($saved->url)), pg_escape_string(utf8_encode($saved->revision)));
+    $binresult = pg_query($sql);
+    $bin = pg_fetch_array($binresult);
 
     if (!isset($bins[$saved->url])) {
       $bins[$saved->url] = array();

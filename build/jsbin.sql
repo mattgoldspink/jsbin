@@ -1,40 +1,42 @@
-CREATE TABLE IF NOT EXISTS `sandbox` (
-  `id` int(11) NOT NULL auto_increment,
-  `javascript` text character set utf8,
-  `html` text character set utf8,
-  `created` datetime default NULL,
-  `last_viewed` datetime default NULL,
-  `url` char(255) default NULL,
-  `streaming` char(1) default 'n',
-  `streaming_key` char(32) NOT NULL,
-  `streaming_read_key` char(32) NOT NULL,
-  `active_tab` varchar(10) NOT NULL,
-  `active_cursor` int(11) NOT NULL,
+CREATE TABLE IF NOT EXISTS "sandbox" (
+  "id" SERIAL,
+  "javascript" text,
+  "html" text,
+  "created" TIMESTAMP default NULL,
+  "last_viewed" TIMESTAMP default NULL,
+  "url" char(255) default NULL,
+  "streaming" char(1) default 'n',
+  "streaming_key" char(32),
+  "streaming_read_key" char(32),
+  "active_tab" varchar(10),
+  "active_cursor" BIGINT,
 
-  `revision` int(11) default 1,
+  "revision" BIGINT default 1,
 
-  PRIMARY KEY  (`id`),
-  KEY `viewed` (`last_viewed`),
-  KEY `url` (`url`),
-  KEY `streaming_key` (`streaming_key`),
-  KEY `spam` (`created`,`last_viewed`),
-  KEY `revision` (`url`, `revision`)
-) character set utf8;
+  PRIMARY KEY  ("id")
+);
+CREATE INDEX "viewed" on "sandbox" ("last_viewed");
+CREATE INDEX "url" on "sandbox" ("url");
+CREATE INDEX "streaming_key" on "sandbox" ("streaming_key");
+CREATE INDEX "spam" on "sandbox" ("created","last_viewed");
+CREATE INDEX "revision" on "sandbox" ("url", "revision");
 
-CREATE TABLE IF NOT EXISTS `owners` (
-  `id` int(11) NOT NULL auto_increment,
-  `name` char(255) NOT NULL,
-  `url` char(255) NOT NULL,
-  `revision` int(11) default 1,
+CREATE TABLE IF NOT EXISTS "owners" (
+  "id" SERIAL,
+  "name" char(255) NOT NULL,
+  "url" char(255) NOT NULL,
+  "revision" BIGINT default 1,
   
-  PRIMARY KEY  (`id`),
-  KEY `name_url` (`name`, `url`, `revision`)
+  PRIMARY KEY  ("id")
 );
+CREATE INDEX "name_url" on "owners" ("name", "url", "revision");
 
-CREATE TABLE IF NOT EXISTS `ownership` (
-  `name` char(255) NOT NULL,
-  `key` char(255) NOT NULL,
 
-  PRIMARY KEY (`name`),
-  KEY `name_key` (`name`, `key`)
+CREATE TABLE IF NOT EXISTS "ownership" (
+  "name" char(255) NOT NULL,
+  "key" char(255) NOT NULL,
+
+  PRIMARY KEY ("name")
 );
+CREATE INDEX "name_key" on "ownership" ("name", "key");
+
