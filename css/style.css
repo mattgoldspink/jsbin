@@ -958,7 +958,7 @@ ie6, li {
 
 .live #source {
   bottom: 0;
-  right: 33%;
+  /*right: 33%;*/
 }
 
 .autocomplete {
@@ -1210,6 +1210,9 @@ span.CodeMirror-selected {
 .CodeMirror-focused span.CodeMirror-selected {
   background: Highlight !important;
 }
+
+div.CodeMirror-selected { background: #d9d9d9; }
+.CodeMirror-focused div.CodeMirror-selected { background: #d7d4f0; }
 
 .CodeMirror-matchingbracket {color: #0f0 !important;}
 .CodeMirror-nonmatchingbracket {color: #f22 !important;}

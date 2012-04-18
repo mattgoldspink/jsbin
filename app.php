@@ -1,5 +1,6 @@
 <?php
 include('config.php'); // contains DB & important versioning
+include('blacklist.php'); // rules to *try* to prevent abuse of jsbin
 
 $host = 'http://' . $_SERVER['HTTP_HOST'];
 
@@ -33,7 +34,7 @@ $edit_mode = true; // determines whether we should go ahead and load index.php
 $code_id = '';
 
 // if it contains the x-requested-with header, or is a CORS request on GET only
-$ajax = isset($_SERVER['HTTP_X_REQUESTED_WITH']) || (isset($_SERVER['HTTP_ORIGIN']) && $_SERVER['REQUEST_METHOD'] == 'GET');
+$ajax = isset($_SERVER['HTTP_X_REQUESTED_WITH']) || (stripos($_SERVER['HTTP_ACCEPT'], 'application/json') !== false && $_SERVER['REQUEST_METHOD'] == 'GET');
 
 $no_code_found = false;
 
@@ -172,17 +173,18 @@ if (!$action) {
     if (($html == '' && $html == $javascript)) {
       // entirely blank isn't going to be saved.
     } else {
-      $ok = pg_query($sql);
-      
-      if ($home) {
-        // first check they have write permission for this home
-        $sql = sprintf("select * from ownership where name='%s' and `key`='%s'", pg_escape_string(utf8_encode($home)), pg_escape_string(utf8_encode($_COOKIE['key'])));
-        $result = pg_query($sql);
-        if (pg_num_rows($result) == 1) {
-          $sql = sprintf("insert into owners (name, url, revision) values ('%s', '%s', '%s')", pg_escape_string(utf8_encode($home)), pg_escape_string(utf8_encode($code_id)), pg_escape_string(utf8_encode($revision)));
-          $ok = pg_query($sql);
+      if (!noinsert($html, $javascript)) {
+        $ok = pg_query($sql);
+        if ($home) {
+          // first check they have write permission for this home
+          $sql = sprintf('select * from ownership where name="%s" and `key`="%s"', mysql_real_escape_string($home), mysql_real_escape_string($_COOKIE['key']));
+          $result = mysql_query($sql);
+          if (mysql_num_rows($result) == 1) {
+            $sql = sprintf('insert into owners (name, url, revision) values ("%s", "%s", "%s")', mysql_real_escape_string($home), mysql_real_escape_string($code_id), mysql_real_escape_string($revision));
+            $ok = mysql_query($sql);
+          }
+          // $code_id = $home . '/' . $code_id;
         }
-        // $code_id = $home . '/' . $code_id;
       }
     }
     
@@ -219,7 +221,7 @@ if (!$action) {
     if (isset($_REQUEST['format']) && strtolower($_REQUEST['format']) == 'plain') {
       echo $url;
     } else {
-      echo '{ "url" : "' . $url . '", "edit" : "' . $url . '/edit", "html" : "' . $url . '/edit", "js" : "' . $url . '/edit" }';
+      echo '{ "code": "' . $code_id . '", "revision": ' . $revision . ', "url" : "' . $url . '", "edit" : "' . $url . '/edit", "html" : "' . $url . '/edit", "js" : "' . $url . '/edit" }';
     }
     
     if (array_key_exists('callback', $_REQUEST)) {
@@ -251,7 +253,7 @@ if (!$action) {
     // find the latest revision and redirect to that.
     $code_id = $subaction;
     $latest_revision = getMaxRevision($code_id);
-    header('Location: /' . $code_id . '/' . $latest_revision);
+    // header('Location: /' . $code_id . '/' . $latest_revision);
     $edit_mode = false;
   }
   // gist are formed as jsbin.com/gist/1234 - which land on this condition, so we need to jump out, just in case
@@ -361,9 +363,12 @@ function formatCompletedCode($html, $javascript, $code_id, $revision) {
   } 
   
   if ($html && stripos($html, '%code%') === false && strlen($javascript)) {
-    $parts = explode("</body>", $html);
-    $html = $parts[0];
-    $close = count($parts) == 2 ? '</body>' . $parts[1] : '';
+    $close = '';
+    if (stripos($html, '</body>') !== false) {
+      $parts = explode("</body>", $html);
+      $html = $parts[0];
+      $close = count($parts) == 2 ? '</body>' . $parts[1] : '';
+    }
     $html .= "<script>\n" . $javascript . "\n</script>\n" . $close;
   } else if ($javascript) {
     // removed the regex completely to try to protect $n variables in JavaScript
